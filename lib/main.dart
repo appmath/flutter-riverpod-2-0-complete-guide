@@ -7,29 +7,7 @@ import 'package:flutter_riverpod_2_cg/src/themes/az_material_colors.dart';
 // the counter to 0.
 // final counterProvider = StateProvider.autoDispose((ref) => 0);
 
-abstract class WebsocketClient {
-  Stream<int> getCounterStream();
-}
-
-class FakeWebsocketClient implements WebsocketClient {
-  @override
-  Stream<int> getCounterStream() async* {
-    int i = 0;
-    while (true) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      yield i++;
-    }
-  }
-}
-
-final websocketClientProvider = Provider<WebsocketClient>((ref) {
-  return FakeWebsocketClient();
-});
-
-final counterProvider = StreamProvider<int>((ref) {
-  final wsClient = ref.watch(websocketClientProvider);
-  return wsClient.getCounterStream();
-});
+final counterProvider = StateProvider((ref) => 0);
 
 void main() {
   runApp(
