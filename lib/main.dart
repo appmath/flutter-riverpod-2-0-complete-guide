@@ -7,7 +7,29 @@ import 'package:flutter_riverpod_2_cg/src/themes/az_material_colors.dart';
 // the counter to 0.
 // final counterProvider = StateProvider.autoDispose((ref) => 0);
 
-final counterProvider = StateProvider((ref) => 0);
+abstract class WebsocketClient {
+  Stream<int> getCounterStream([int start]);
+}
+
+class FakeWebsocketClient implements WebsocketClient {
+  @override
+  Stream<int> getCounterStream([int start = 0]) async* {
+    int i = start;
+    while (true) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      yield i++;
+    }
+  }
+}
+
+final websocketClientProvider = Provider<WebsocketClient>((ref) {
+  return FakeWebsocketClient();
+});
+
+final counterProvider = StreamProvider.family<int, int>((ref, start) {
+  final wsClient = ref.watch(websocketClientProvider);
+  return wsClient.getCounterStream(start);
+});
 
 void main() {
   runApp(
@@ -93,46 +115,22 @@ class CounterPage extends ConsumerWidget {
     // Using the WidgetRef to get the counter int from the counterProvider.
     // The watch method makes the widget rebuild whenever the int changes value.
     //   - something like setState() but automatic
-    final int counter = ref.watch(counterProvider);
-
-    ref.listen<int>(counterProvider, (previous, next) {
-      if (next >= 5) {
-        _showErrorDialog('Warning',
-            'Counter dangerously high. Consider resetting it.', context);
-      }
-    });
+    final AsyncValue<int> counter = ref.watch(counterProvider(5));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Counter'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // returns void and is more efficient.
-              ref.invalidate(counterProvider);
-
-              // returns 0
-              // ref.refresh(counterProvider);
-            },
-          )
-        ],
       ),
       body: Center(
         child: Text(
-          counter.toString(),
+          counter
+              .when(
+                  data: (int value) => value,
+                  error: (Object e, _) => e,
+                  loading: () => 5)
+              .toString(),
           style: Theme.of(context).textTheme.displayMedium,
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () {
-          // Using the WidgetRef to read() the counterProvider just one time.
-          //   - unlike watch(), this will never rebuild the widget automatically
-          // We don't want to get the int but the actual StateNotifier, hence we access it.
-          // StateNotifier exposes the int which we can then mutate (in our case increment).
-          ref.read(counterProvider.notifier).state++;
-        },
       ),
     );
   }
